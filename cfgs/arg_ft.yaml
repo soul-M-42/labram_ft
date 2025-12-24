@@ -16,7 +16,7 @@ dataset: TUAB
 qkv_bias: false           # --disable_qkv_bias
 seed: 0
 
-# dataset
+# Dataset
 DATA_ROOT_DIR: "/emo-eeg"
 DATASET_NAME: 'dummy'
 CACHE_ROOT: "cache"
@@ -24,3 +24,7 @@ FS: 200
 WINDOW_SIZE: 2.0
 STRIDE: 1.0
 BATCH_SIZE: 4
+TRAIN_SUBS: [1,2]
+VAL_SUBS: [1,2]
+
+# Training

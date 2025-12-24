@@ -1,6 +1,7 @@
 from model.base_model import get_model
 from model.utils import model_detail
 from data.dataset import get_dataset
+from data.dataloader import get_loader
 import yaml
 import argparse
 from types import SimpleNamespace
@@ -104,6 +105,8 @@ def get_args_from_yaml(yaml_path: str):
     parser.add_argument('--WINDOW_SIZE', default=2.0, type=float)
     parser.add_argument('--STRIDE', default=1.0, type=float)
     parser.add_argument('--BATCH_SIZE', default=4, type=int)
+    parser.add_argument('--TRAIN_SUBS', default=None, type=int, nargs='+', help="训练子集列表")
+    parser.add_argument('--VAL_SUBS', default=None, type=int, nargs='+', help="验证子集列表")
 
     # Build a namespace object with defaults
     args = parser.parse_args([])  # empty list to only get defaults
@@ -136,6 +139,9 @@ if __name__ == '__main__':
     print(args)
     model = get_model(args)
     model_detail(model)
-    ft_set = get_dataset(args)
-    print(len(ft_set))
-
+    # ft_set = get_dataset(args)
+    # print(len(ft_set))
+    train_loader = get_loader(args, sub_list=args.TRAIN_SUBS)
+    val_loader = get_loader(args, sub_list=args.VAL_SUBS)
+    print(len(train_loader))
+    print(len(val_loader))

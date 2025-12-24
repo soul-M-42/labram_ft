@@ -4,6 +4,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 import scipy.io as sio
 from tqdm import tqdm
+from pathlib import Path
 
 
 class SubjectSliceDataset(Dataset):
@@ -44,6 +45,8 @@ class SubjectSliceDataset(Dataset):
         else:
             print(f"Using existing cache at: {self.data_cache_dir}")
             self._load_index()
+        
+        self.n_sub = sum(1 for sub in Path(self.data_cache_dir).iterdir() if sub.is_dir())
 
     def _cache_exists(self):
         to_check = os.path.join(self.data_cache_dir, "index.npy")
@@ -170,7 +173,7 @@ if __name__ == "__main__":
 
     print("Creating dataset...")
     dataset = SubjectSliceDataset(
-        root_dir=ROOT_DIR,
+        data_root_dir=ROOT_DIR,
         dataset_name=DATASET_NAME,
         cache_root=CACHE_ROOT,
         fs=FS,
