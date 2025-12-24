@@ -2,10 +2,11 @@ from model.base_model import get_base_model
 from model.utils import model_detail, get_input_chans
 from model.reg_head_mlp import MLPRegHead
 from data.dataloader import get_loader
-from finetune.engine import finetune_one_epoch
+from finetune.engine import finetune_one_epoch, validate_one_epoch
 import yaml
 import argparse
 import torch
+from torch.utils.tensorboard import SummaryWriter
 from types import SimpleNamespace
 from tqdm import tqdm
 
@@ -114,6 +115,7 @@ def get_args_from_yaml(yaml_path: str):
     parser.add_argument('--VAL_SUBS', default=None, type=int, nargs='+', help="验证子集列表")
     
     parser.add_argument('--finetune_epochs', default=20, type=int)
+    parser.add_argument('--run_name', default='default_run_name', type=str)
 
     # Build a namespace object with defaults
     args = parser.parse_args([])  # empty list to only get defaults
@@ -158,6 +160,7 @@ if __name__ == '__main__':
         list(base_model.parameters()) + list(reg_head.parameters()),
         lr=1e-4
     )
+    writer = SummaryWriter(log_dir=f'runs/{args.run_name}')
     Epoch = args.finetune_epochs
     epoch_bar = tqdm(range(Epoch), desc="Training")
     for epoch in epoch_bar:
@@ -167,6 +170,19 @@ if __name__ == '__main__':
             dataloader=train_loader,
             input_cha_ids=input_cha_ids,
             optimizer=optimizer,
+            writer=writer,
+            epoch=epoch
         )
         print(f"Epoch {epoch} Training Loss: {train_loss:.4f}")
+        val_loss = validate_one_epoch(
+            base_model,
+            reg_head,
+            val_loader,
+            input_cha_ids,
+            writer,
+            epoch
+        )
+        print(f"Epoch {epoch} Validation Loss: {val_loss:.4f}")
+        
+    writer.close()
         

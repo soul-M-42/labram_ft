@@ -32,4 +32,5 @@ TRAIN_SUBS: [1,2]
 VAL_SUBS: [1,2]
 
 # Training
+run_name: 'default_run_name'
 finetune_epochs: 20
