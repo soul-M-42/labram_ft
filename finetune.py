@@ -1,10 +1,11 @@
-from model.base_model import get_model
-from model.utils import model_detail
-from data.dataset import get_dataset
+from model.base_model import get_base_model
+from model.utils import model_detail, get_input_chans
 from data.dataloader import get_loader
+from finetune.engine import finetune_one_epoch
 import yaml
 import argparse
 from types import SimpleNamespace
+from tqdm import tqdm
 
 def get_args_from_yaml(yaml_path: str):
     """
@@ -100,6 +101,7 @@ def get_args_from_yaml(yaml_path: str):
 
     parser.add_argument('--DATA_ROOT_DIR', default='/emo-eeg', type=str)
     parser.add_argument('--CACHE_ROOT', default='cache', type=str)
+    parser.add_argument('--INPUT_CHA_NAMES', default='cache', type=str)
     parser.add_argument('--DATASET_NAME', default='dummy', type=str)
     parser.add_argument('--FS', default=200, type=int)
     parser.add_argument('--WINDOW_SIZE', default=2.0, type=float)
@@ -107,6 +109,8 @@ def get_args_from_yaml(yaml_path: str):
     parser.add_argument('--BATCH_SIZE', default=4, type=int)
     parser.add_argument('--TRAIN_SUBS', default=None, type=int, nargs='+', help="训练子集列表")
     parser.add_argument('--VAL_SUBS', default=None, type=int, nargs='+', help="验证子集列表")
+    
+    parser.add_argument('--finetune_epochs', default=20, type=int)
 
     # Build a namespace object with defaults
     args = parser.parse_args([])  # empty list to only get defaults
@@ -137,11 +141,15 @@ def get_args_from_yaml(yaml_path: str):
 if __name__ == '__main__':
     args, ds_init = get_args_from_yaml('./cfgs/arg_ft.yaml')
     print(args)
-    model = get_model(args)
-    model_detail(model)
+    base_model = get_base_model(args)
+    model_detail(base_model)
     # ft_set = get_dataset(args)
     # print(len(ft_set))
-    train_loader = get_loader(args, sub_list=args.TRAIN_SUBS)
-    val_loader = get_loader(args, sub_list=args.VAL_SUBS)
-    print(len(train_loader))
-    print(len(val_loader))
+    train_loader = get_loader(args, sub_list=args.TRAIN_SUBS, batch_size=args.BATCH_SIZE)
+    val_loader = get_loader(args, sub_list=args.VAL_SUBS, batch_size=args.BATCH_SIZE)
+
+    input_cha_names = args.INPUT_CHA_NAMES
+    input_cha_ids = get_input_chans(input_cha_names)
+    Epoch = args.finetune_epochs
+    for epoch in tqdm(range(Epoch)):
+        finetune_one_epoch(base_model, train_loader, input_cha_ids)

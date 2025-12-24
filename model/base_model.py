@@ -8,7 +8,7 @@ from timm.models import create_model
 import model.modeling_finetune as modeling_finetune
 import model.utils as utils
 
-def get_model(args):
+def get_base_model(args):
     model = create_model(
         args.model,
         pretrained=False,

@@ -103,6 +103,8 @@ class SubjectSliceDataset(Dataset):
                 ):
                     end = start + self.window_points
                     data_slice = trial_data[:, start:end]
+                    data_slice = np.reshape(data_slice, (data_slice.shape[0], int(self.window_size), int(self.fs)))
+                    print(data_slice.shape)
 
                     # label 时间窗口平均
                     t_start = start / self.fs

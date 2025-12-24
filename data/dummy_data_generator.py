@@ -7,7 +7,7 @@ def create_test_data(
     n_subjects=2,
     n_trials=3,
     trial_lengths=(10, 15, 5),  # seconds
-    n_channels=64,
+    n_channels=3,
     fs=200,
     n_label_dim=3,
 ):
