@@ -1,0 +1,17 @@
+output_dir: ./checkpoints/finetune_tuab_base/
+log_dir: ./log/finetune_tuab_base
+model: labram_base_patch200_200
+finetune: ./checkpoints/labram-base.pth
+weight_decay: 0.05
+batch_size: 64
+lr: 5e-4
+update_freq: 1
+warmup_epochs: 5
+epochs: 50
+layer_decay: 0.65
+drop_path: 0.1
+rel_pos_bias: false       # --disable_rel_pos_bias
+abs_pos_emb: true         # --abs_pos_emb
+dataset: TUAB
+qkv_bias: false           # --disable_qkv_bias
+seed: 0
