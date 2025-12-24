@@ -5,8 +5,8 @@ import os
 import logging
 from copy import deepcopy
 from timm.models import create_model
-import modeling_finetune
-import utils
+import model.modeling_finetune as modeling_finetune
+import model.utils as utils
 
 def get_model(args):
     model = create_model(
