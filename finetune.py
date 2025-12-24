@@ -1,5 +1,6 @@
 from model.base_model import get_model
 from model.utils import model_detail
+from data.dataset import get_dataset
 import yaml
 import argparse
 from types import SimpleNamespace
@@ -96,6 +97,14 @@ def get_args_from_yaml(yaml_path: str):
     parser.add_argument('--enable_deepspeed', action='store_true', default=False)
     parser.add_argument('--dataset', default='TUAB', type=str)
 
+    parser.add_argument('--DATA_ROOT_DIR', default='/emo-eeg', type=str)
+    parser.add_argument('--CACHE_ROOT', default='cache', type=str)
+    parser.add_argument('--DATASET_NAME', default='dummy', type=str)
+    parser.add_argument('--FS', default=200, type=int)
+    parser.add_argument('--WINDOW_SIZE', default=2.0, type=float)
+    parser.add_argument('--STRIDE', default=1.0, type=float)
+    parser.add_argument('--BATCH_SIZE', default=4, type=int)
+
     # Build a namespace object with defaults
     args = parser.parse_args([])  # empty list to only get defaults
 
@@ -127,4 +136,6 @@ if __name__ == '__main__':
     print(args)
     model = get_model(args)
     model_detail(model)
+    ft_set = get_dataset(args)
+    print(len(ft_set))
 

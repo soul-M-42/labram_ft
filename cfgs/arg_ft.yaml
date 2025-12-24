@@ -15,3 +15,12 @@ abs_pos_emb: true         # --abs_pos_emb
 dataset: TUAB
 qkv_bias: false           # --disable_qkv_bias
 seed: 0
+
+# dataset
+DATA_ROOT_DIR: "/emo-eeg"
+DATASET_NAME: 'dummy'
+CACHE_ROOT: "cache"
+FS: 200
+WINDOW_SIZE: 2.0
+STRIDE: 1.0
+BATCH_SIZE: 4
