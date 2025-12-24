@@ -1,9 +1,11 @@
 from model.base_model import get_base_model
 from model.utils import model_detail, get_input_chans
+from model.reg_head_mlp import MLPRegHead
 from data.dataloader import get_loader
 from finetune.engine import finetune_one_epoch
 import yaml
 import argparse
+import torch
 from types import SimpleNamespace
 from tqdm import tqdm
 
@@ -102,6 +104,7 @@ def get_args_from_yaml(yaml_path: str):
     parser.add_argument('--DATA_ROOT_DIR', default='/emo-eeg', type=str)
     parser.add_argument('--CACHE_ROOT', default='cache', type=str)
     parser.add_argument('--INPUT_CHA_NAMES', default='cache', type=str)
+    parser.add_argument('--LABEL_DIM', default=3, type=int)
     parser.add_argument('--DATASET_NAME', default='dummy', type=str)
     parser.add_argument('--FS', default=200, type=int)
     parser.add_argument('--WINDOW_SIZE', default=2.0, type=float)
@@ -142,6 +145,7 @@ if __name__ == '__main__':
     args, ds_init = get_args_from_yaml('./cfgs/arg_ft.yaml')
     print(args)
     base_model = get_base_model(args)
+    reg_head = MLPRegHead(fea_dim=200, n_tar_dim=args.LABEL_DIM).to(torch.device('cuda'))
     model_detail(base_model)
     # ft_set = get_dataset(args)
     # print(len(ft_set))
@@ -150,6 +154,19 @@ if __name__ == '__main__':
 
     input_cha_names = args.INPUT_CHA_NAMES
     input_cha_ids = get_input_chans(input_cha_names)
+    optimizer = torch.optim.Adam(
+        list(base_model.parameters()) + list(reg_head.parameters()),
+        lr=1e-4
+    )
     Epoch = args.finetune_epochs
-    for epoch in tqdm(range(Epoch)):
-        finetune_one_epoch(base_model, train_loader, input_cha_ids)
+    epoch_bar = tqdm(range(Epoch), desc="Training")
+    for epoch in epoch_bar:
+        train_loss = finetune_one_epoch(
+            base_model=base_model,
+            reg_head=reg_head,
+            dataloader=train_loader,
+            input_cha_ids=input_cha_ids,
+            optimizer=optimizer,
+        )
+        print(f"Epoch {epoch} Training Loss: {train_loss:.4f}")
+        

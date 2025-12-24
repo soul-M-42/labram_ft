@@ -112,7 +112,7 @@ class SubjectSliceDataset(Dataset):
                     mask = (label_time >= t_start) & (label_time <= t_end)
                     label_slice = trial_label[:, mask].mean(
                         axis=1, keepdims=True
-                    )
+                    ).squeeze()
 
                     save_path = os.path.join(
                         cache_sub_dir,
