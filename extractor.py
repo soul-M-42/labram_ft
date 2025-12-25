@@ -1,5 +1,5 @@
 from model.base_model import get_base_model
-from model.utils import model_detail, get_input_chans, save_model
+from model.utils import model_detail, get_input_chans
 from model.reg_head_mlp import MLPRegHead
 from data.dataloader import get_loader
 from finetune.engine import finetune_one_epoch, validate_one_epoch
@@ -147,86 +147,8 @@ def get_args_from_yaml(yaml_path: str):
 if __name__ == '__main__':
 
     # ---------- args & model ----------
-    args, ds_init = get_args_from_yaml('./cfgs/arg_ft.yaml')
+    args, ds_init = get_args_from_yaml('./cfgs/arg_ex.yaml')
     print(args)
 
     base_model = get_base_model(args)
-    reg_head = MLPRegHead(
-        fea_dim=200,
-        n_tar_dim=args.LABEL_DIM
-    ).to(torch.device('cuda'))
-
     model_detail(base_model)
-
-    # ---------- dataloader ----------
-    train_loader = get_loader(
-        args,
-        sub_list=args.TRAIN_SUBS,
-        batch_size=args.BATCH_SIZE
-    )
-    val_loader = get_loader(
-        args,
-        sub_list=args.VAL_SUBS,
-        batch_size=args.BATCH_SIZE
-    )
-
-    # ---------- input channels ----------
-    input_cha_names = args.INPUT_CHA_NAMES
-    input_cha_ids = get_input_chans(input_cha_names)
-
-    # ---------- optimizer ----------
-    optimizer = torch.optim.Adam(
-        list(base_model.parameters()) + list(reg_head.parameters()),
-        lr=1e-4
-    )
-
-    # ---------- tensorboard ----------
-    writer = SummaryWriter(log_dir=f'runs/{args.run_name}')
-
-    # ---------- checkpoint dir ----------
-    ckpt_dir = f'runs/{args.run_name}/ckpt'
-    os.makedirs(ckpt_dir, exist_ok=True)
-
-    best_val_loss = float('inf')
-
-    # ---------- training ----------
-    Epoch = args.finetune_epochs
-    epoch_bar = tqdm(range(Epoch), desc="Training")
-
-    for epoch in epoch_bar:
-
-        # ===== train =====
-        train_loss = finetune_one_epoch(
-            base_model=base_model,
-            reg_head=reg_head,
-            dataloader=train_loader,
-            input_cha_ids=input_cha_ids,
-            optimizer=optimizer,
-            writer=writer,
-            epoch=epoch
-        )
-        print(f"Epoch {epoch} Training Loss: {train_loss:.4f}")
-
-        # ===== validate =====
-        val_loss = validate_one_epoch(
-            base_model,
-            reg_head,
-            val_loader,
-            input_cha_ids,
-            writer,
-            epoch
-        )
-        print(f"Epoch {epoch} Validation Loss: {val_loss:.4f}")
-
-        # ===== save last ckpt =====
-        last_ckpt_path = os.path.join(ckpt_dir, 'last.ckpt')
-        save_model(output_dir=f'runs/{args.run_name}/ckpt', model=base_model, optimizer=optimizer, epoch=epoch)
-
-        # ===== save best ckpt =====
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
-            best_ckpt_path = os.path.join(ckpt_dir, 'best.ckpt')
-            save_model(f'runs/{args.run_name}/ckpt', model=base_model, optimizer=optimizer, epoch=epoch)
-            print(f"✅ Best model saved at epoch {epoch}, val_loss={val_loss:.4f}")
-
-    writer.close()

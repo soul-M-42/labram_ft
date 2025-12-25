@@ -1,5 +1,4 @@
 model: labram_base_patch200_200
-finetune: ./checkpoints/labram-base.pth
 weight_decay: 0.05
 batch_size: 64
 lr: 5e-4
@@ -29,6 +28,7 @@ BATCH_SIZE: 16
 TRAIN_SUBS: [1,2]
 VAL_SUBS: [1,2]
 
-# Training
+# Extract
 run_name: 'default_run_name'
-finetune_epochs: 20
+finetune: ./runs/default_run_name/ckpt/checkpoint.pth
+# finetune: ./checkpoints/labram-base.pth

@@ -1,5 +1,27 @@
 import torch
 import torch.nn as nn
+from pathlib import Path
+from timm.utils import get_state_dict
+import torch.distributed as dist
+
+def is_dist_avail_and_initialized():
+    if not dist.is_available():
+        return False
+    if not dist.is_initialized():
+        return False
+    return True
+
+def get_rank():
+    if not is_dist_avail_and_initialized():
+        return 0
+    return dist.get_rank()
+
+def is_main_process():
+    return get_rank() == 0
+
+def save_on_master(*args, **kwargs):
+    if is_main_process():
+        torch.save(*args, **kwargs)
 
 
 def model_detail(model: nn.Module):
@@ -102,3 +124,28 @@ def get_input_chans(ch_names):
     for ch_name in ch_names:
         input_chans.append(standard_1020.index(ch_name) + 1)
     return input_chans
+
+def save_model(output_dir, epoch, model, optimizer, model_ema=None, optimizer_disc=None, save_ckpt_freq=1):
+    epoch_name = str(epoch)
+    output_dir = Path(output_dir)
+
+    checkpoint_paths = [output_dir / 'checkpoint.pth']
+    if epoch == 'best':
+        checkpoint_paths = [output_dir / ('checkpoint-%s.pth' % epoch_name),]
+    elif (epoch + 1) % save_ckpt_freq == 0:
+        checkpoint_paths.append(output_dir / ('checkpoint-%s.pth' % epoch_name))
+
+    for checkpoint_path in checkpoint_paths:
+        to_save = {
+            'model': model.state_dict(),
+            'optimizer': optimizer.state_dict(),
+            'epoch': epoch,
+        }
+
+        if model_ema is not None:
+            to_save['model_ema'] = get_state_dict(model_ema)
+            
+        if optimizer_disc is not None:
+            to_save['optimizer_disc'] = optimizer_disc.state_dict()
+
+        save_on_master(to_save, checkpoint_path)

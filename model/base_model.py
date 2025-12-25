@@ -54,6 +54,7 @@ def get_base_model(args):
                 if key.startswith('student.'):
                     new_dict[key[8:]] = checkpoint_model[key]
                 else:
+                    new_dict[key] = checkpoint_model[key]
                     pass
             checkpoint_model = new_dict
 
