@@ -110,7 +110,8 @@ def get_args_from_yaml(yaml_path: str):
     parser.add_argument('--INPUT_CHA_NAMES', default='cache', type=str)
     parser.add_argument('--LABEL_DIM', default=3, type=int)
     parser.add_argument('--DATASET_NAME', default='dummy', type=str)
-    parser.add_argument('--FS', default=200, type=int)
+    parser.add_argument('--FS_ORI', type=int)
+    parser.add_argument('--FS_TAR', default=200, type=int)
     parser.add_argument('--WINDOW_SIZE', default=2.0, type=float)
     parser.add_argument('--STRIDE', default=1.0, type=float)
     parser.add_argument('--BATCH_SIZE', default=4, type=int)
@@ -193,7 +194,6 @@ if __name__ == '__main__':
     n = fea.shape[0]
     mask = np.array([0] * (n // 2) + [1] * (n - n // 2))
     print(mask.shape)
-    print(label)
     # SVR regression
     if(args.reg):
         model, y_pred, metrics = svr_regression(fea, label, mask)

@@ -6,6 +6,54 @@ import scipy.io as sio
 from tqdm import tqdm
 from pathlib import Path
 
+from scipy.signal import resample_poly
+from scipy.interpolate import interp1d
+from math import gcd
+def resample_ndim_signal(x, fs_old, fs_new):
+    """
+    x: np.ndarray, shape = [n_dim, n_t]
+    fs_old: 原采样率
+    fs_new: 目标采样率
+    """
+    # 计算最简 up / down
+    g = gcd(fs_old, fs_new)
+    up = fs_new // g
+    down = fs_old // g
+
+    # 沿时间轴重采样（axis=1）
+    x_resampled = resample_poly(x, up=up, down=down, axis=1)
+
+    return x_resampled
+
+def interp_to_length(x, n_t_new, axis=1):
+    """
+    将数组 x 在指定轴上线性插值 / 拉伸到指定长度
+    支持 n_t_old == 1 的极端情况
+    """
+    x = np.asarray(x)
+    n_t_old = x.shape[axis]
+
+    # ---------- 极端情况 ----------
+    if n_t_old == 1:
+        # 常数扩展
+        reps = [1] * x.ndim
+        reps[axis] = n_t_new
+        return np.tile(x, reps)
+
+    # ---------- 正常插值 ----------
+    t_old = np.linspace(0, 1, n_t_old)
+    t_new = np.linspace(0, 1, n_t_new)
+
+    f = interp1d(
+        t_old,
+        x,
+        axis=axis,
+        kind="linear",
+        bounds_error=False,
+        fill_value="extrapolate"
+    )
+
+    return f(t_new)
 
 class SubjectSliceDataset(Dataset):
     def __init__(
@@ -13,7 +61,8 @@ class SubjectSliceDataset(Dataset):
         data_root_dir,
         dataset_name,
         cache_root,
-        fs,
+        fs_ori,
+        fs_tar,
         window_size,
         stride,
         rebuild_cache=False,
@@ -21,15 +70,16 @@ class SubjectSliceDataset(Dataset):
         self.root_dir = os.path.join(data_root_dir, dataset_name)
         self.dataset_name = dataset_name
         self.cache_root = os.path.abspath(cache_root)
-        self.fs = fs
+        self.fs_ori = fs_ori
+        self.fs_tar = fs_tar
         self.window_size = window_size
         self.stride = stride
 
-        self.window_points = int(window_size * fs)
-        self.stride_points = int(stride * fs)
+        self.window_points = int(window_size * fs_tar)
+        self.stride_points = int(stride * fs_tar)
 
         # ===== 自动生成 cache 目录 =====
-        cache_dir_name = f"fs{fs}_win{window_size}s_stride{stride}s"
+        cache_dir_name = f"fs{fs_ori}_win{window_size}s_stride{stride}s"
         self.data_cache_dir = os.path.join(
             self.cache_root,
             dataset_name,
@@ -40,7 +90,7 @@ class SubjectSliceDataset(Dataset):
         self.index = []  # 保存所有切片路径
         if rebuild_cache or not self._cache_exists():
             print(f"Building cache at: {self.data_cache_dir}")
-            os.makedirs(self.data_cache_dir)
+            os.makedirs(self.data_cache_dir, exist_ok=True)
             self._build_cache()
         else:
             print(f"Using existing cache at: {self.data_cache_dir}")
@@ -50,7 +100,6 @@ class SubjectSliceDataset(Dataset):
 
     def _cache_exists(self):
         to_check = os.path.join(self.data_cache_dir, "index.npy")
-        to_check = self.data_cache_dir
         return os.path.exists(to_check)
     def _build_cache(self):
         self.index = []
@@ -73,22 +122,18 @@ class SubjectSliceDataset(Dataset):
             #   data: [n_channel, n_total_points]
             #   trial_duration: [1, n_trial]
             data = data_mat["data"]
+            data = resample_ndim_signal(data, self.fs_ori, self.fs_tar)
             trial_durations = data_mat["trial_duration"].squeeze()
-
-            # label.mat: n_trial 个 label 矩阵
-            labels = [
-                label_mat[key]
-                for key in sorted(label_mat.keys())
-                if not key.startswith("__")
-            ]
 
             point_cursor = 0
 
             for trial_id, duration in enumerate(trial_durations):
-                n_points = int(duration * self.fs)
+                n_points = int(duration * self.fs_tar)
 
                 trial_data = data[:, point_cursor:point_cursor + n_points]
-                trial_label = labels[trial_id]  # [n_dim, T_label]
+                trial_label = label_mat[f'trial_{trial_id}']  # [n_dim, T_label]
+                if(trial_label.shape[1] < duration):
+                    trial_label = interp_to_length(trial_label, int(duration))
 
                 point_cursor += n_points
 
@@ -103,17 +148,16 @@ class SubjectSliceDataset(Dataset):
                 ):
                     end = start + self.window_points
                     data_slice = trial_data[:, start:end]
-                    data_slice = np.reshape(data_slice, (data_slice.shape[0], int(self.window_size), int(self.fs)))
-                    print(data_slice.shape)
+                    data_slice = np.reshape(data_slice, (data_slice.shape[0], int(self.window_size), int(self.fs_tar)))
+
 
                     # label 时间窗口平均
-                    t_start = start / self.fs
-                    t_end = end / self.fs
+                    t_start = start / self.fs_tar
+                    t_end = end / self.fs_tar
                     mask = (label_time >= t_start) & (label_time <= t_end)
                     label_slice = trial_label[:, mask].mean(
                         axis=1, keepdims=True
                     ).squeeze()
-
                     save_path = os.path.join(
                         cache_sub_dir,
                         f"trial_{trial_id}_slice_{slice_id:04d}.npy"

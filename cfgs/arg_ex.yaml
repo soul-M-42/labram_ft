@@ -17,16 +17,21 @@ seed: 0
 
 # Dataset
 DATA_ROOT_DIR: "/emo-eeg"
-DATASET_NAME: 'dummy'
+DATASET_NAME: 'FACED_standard'
 CACHE_ROOT: "cache"
-INPUT_CHA_NAMES: ['FP1', 'FP2', 'FPZ']
-LABEL_DIM: 3
-FS: 200
+INPUT_CHA_NAMES: [
+    "FP1", "FP2", "FZ", "F3", "F4", "F7", "F8", "FC1", "FC2", "FC5", "FC6", "CZ",
+    "C3", "C4", "T7", "T8", "CP1", "CP2", "CP5", "CP6", "PZ", "P3", "P4", "P7",
+    "P8", "PO3", "PO4", "OZ", "O1", "O2"
+]
+LABEL_DIM: 9
+FS_ORI: 125
+FS_TAR: 200
 WINDOW_SIZE: 2.0
 STRIDE: 1.0
 BATCH_SIZE: 16
 TRAIN_SUBS: [1,2]
-VAL_SUBS: [1, 2]
+VAL_SUBS: [1]
 
 # Extract
 run_name: 'default_run_name'

@@ -38,10 +38,10 @@ def get_loader(args, sub_list=None, shuffle=True, batch_size=4, num_workers=0):
         data_root_dir=args.DATA_ROOT_DIR,
         dataset_name=args.DATASET_NAME,
         cache_root=args.CACHE_ROOT,
-        fs=args.FS,
+        fs_ori=args.FS_ORI,
+        fs_tar=args.FS_TAR,
         window_size=args.WINDOW_SIZE,
         stride=args.STRIDE,
-        rebuild_cache=False
     )
 
     if sub_list is not None:

@@ -6,7 +6,7 @@ def create_test_data(
     root_dir="test_data_root",
     n_subjects=2,
     n_trials=3,
-    trial_lengths=(10, 15, 5),  # seconds
+    trial_lengths=(100, 150, 50),  # seconds
     n_channels=3,
     fs=200,
     n_label_dim=3,
