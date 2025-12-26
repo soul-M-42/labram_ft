@@ -31,7 +31,7 @@ def preprocess_label(label, task="regression"):
     return label
 
 
-def svr_regression(fea, label, mask, svr_params=None):
+def regression(fea, label, mask, svr_params=None):
     fea = np.asarray(fea)
     mask = np.asarray(mask).astype(bool)
 
@@ -84,7 +84,7 @@ def svr_regression(fea, label, mask, svr_params=None):
     return models, y_pred, metrics
 
 
-def svm_classification(fea, label, mask, svm_params=None):
+def classification(fea, label, mask, svm_params=None):
     fea = np.asarray(fea)
     mask = np.asarray(mask).astype(bool)
 

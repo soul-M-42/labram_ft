@@ -11,7 +11,7 @@ from types import SimpleNamespace
 from tqdm import tqdm
 import os
 import numpy as np
-from downstream.utils import svm_classification, svr_regression
+from downstream.utils import classification, regression
 
 def get_args_from_yaml(yaml_path: str):
     """
@@ -153,13 +153,15 @@ def get_args_from_yaml(yaml_path: str):
 
 if __name__ == '__main__':
     args, ds_init = get_args_from_yaml('./cfgs/arg_ex.yaml')
-
+    fea_save_dir = f'{args.DATA_ROOT_DIR}/{args.DATASET_NAME}/fea'  
+    fea_dir = f'{fea_save_dir}/fea_{args.run_name}.npy'
+    label_dir = f'{fea_save_dir}/label_{args.run_name}.npy'  
     if(args.ext):
         # ---------- args & model ----------
         print(args)
 
         base_model = get_base_model(args)
-        model_detail(base_model)
+        # model_detail(base_model)
         # ---------- dataloader ----------
         val_loader = get_loader(
             args,
@@ -181,17 +183,16 @@ if __name__ == '__main__':
             label_all.append(y_real.detach().cpu().numpy())
         fea_all = np.concatenate(fea_all)
         label_all = np.concatenate(label_all)
-        fea_save_dir = f'{args.DATA_ROOT_DIR}/{args.DATASET_NAME}/fea'    
         if not os.path.exists(fea_save_dir):
             os.makedirs(fea_save_dir)
-        fea_dir = f'{fea_save_dir}/fea_{args.run_name}.npy'
-        label_dir = f'{fea_save_dir}/label_{args.run_name}.npy'
         np.save(fea_dir, fea_all)
         np.save(label_dir,label_all)
         print(f'Feature saved to {fea_dir}')
 
+    print(f'loading feature from {fea_dir}')
     fea = np.load(fea_dir)
     label = np.load(label_dir)
+    print(f'fea shape {fea.shape}')
 
     # optional fea process
     fea = zscore_norm(fea)
@@ -200,12 +201,12 @@ if __name__ == '__main__':
     mask = np.array([0] * (n // 2) + [1] * (n - n // 2))
     # SVR regression
     if(args.reg):
-        model, y_pred, metrics = svr_regression(fea, label, mask)
+        model, y_pred, metrics = regression(fea, label, mask)
         print(f"SVR Regression ({y_pred.shape[1]}D)")
         for d, m in enumerate(metrics["per_dim"]):
             print(f"[Dim {d}] MSE: {m['mse']:.6f}, R2: {m['r2']:.6f}")
     # SVM classification
     if(args.cls):
-        model, y_pred, metrics = svm_classification(fea, label, mask)
+        model, y_pred, metrics = classification(fea, label, mask)
         print(metrics["accuracy"])
     
