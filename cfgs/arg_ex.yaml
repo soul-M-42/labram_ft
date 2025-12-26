@@ -26,9 +26,14 @@ WINDOW_SIZE: 2.0
 STRIDE: 1.0
 BATCH_SIZE: 16
 TRAIN_SUBS: [1,2]
-VAL_SUBS: [1,2]
+VAL_SUBS: [1, 2]
 
 # Extract
 run_name: 'default_run_name'
 finetune: ./runs/default_run_name/ckpt/checkpoint.pth
 # finetune: ./checkpoints/labram-base.pth
+
+# Downstream Pipeline
+ext: true
+reg: true
+cls: false

@@ -10,6 +10,8 @@ from torch.utils.tensorboard import SummaryWriter
 from types import SimpleNamespace
 from tqdm import tqdm
 import os
+import numpy as np
+from downstream.utils import svm_classification, svr_regression
 
 def get_args_from_yaml(yaml_path: str):
     """
@@ -118,6 +120,10 @@ def get_args_from_yaml(yaml_path: str):
     parser.add_argument('--finetune_epochs', default=20, type=int)
     parser.add_argument('--run_name', default='default_run_name', type=str)
 
+    parser.add_argument('--ext', type=bool)
+    parser.add_argument('--reg', type=bool)
+    parser.add_argument('--cls', type=bool)
+
     # Build a namespace object with defaults
     args = parser.parse_args([])  # empty list to only get defaults
 
@@ -145,10 +151,55 @@ def get_args_from_yaml(yaml_path: str):
 
 
 if __name__ == '__main__':
-
-    # ---------- args & model ----------
     args, ds_init = get_args_from_yaml('./cfgs/arg_ex.yaml')
-    print(args)
 
-    base_model = get_base_model(args)
-    model_detail(base_model)
+    if(args.ext):
+        # ---------- args & model ----------
+        print(args)
+
+        base_model = get_base_model(args)
+        model_detail(base_model)
+        # ---------- dataloader ----------
+        val_loader = get_loader(
+            args,
+            sub_list=args.VAL_SUBS,
+            batch_size=args.BATCH_SIZE
+        )
+        print(len(val_loader.dataset))
+        input_cha_names = args.INPUT_CHA_NAMES
+        input_cha_ids = get_input_chans(input_cha_names)
+        device = torch.device('cuda')
+        fea_all = []
+        label_all = []
+        for eeg, label in tqdm(val_loader):
+            eeg = eeg.to(device)
+            y_real = label.to(device)
+            fea = base_model(eeg, input_cha_ids)
+            fea_all.append(fea)
+            label_all.append(y_real)
+        fea_all = torch.concat(fea_all)
+        label_all = torch.concat(label_all)
+        fea_save_dir = f'{args.DATA_ROOT_DIR}/{args.DATASET_NAME}/fea'    
+        if not os.path.exists(fea_save_dir):
+            os.makedirs(fea_save_dir)
+        fea_dir = f'{fea_save_dir}/fea_{args.run_name}.npy'
+        label_dir = f'{fea_save_dir}/label_{args.run_name}.npy'
+        np.save(fea_dir, fea_all.detach().cpu().numpy())
+        np.save(label_dir,label_all.detach().cpu().numpy())
+        print(f'Feature saved to {fea_dir}')
+
+    fea = np.load(fea_dir)
+    label = np.load(label_dir)
+    n = fea.shape[0]
+    mask = np.array([0] * (n // 2) + [1] * (n - n // 2))
+    print(mask.shape)
+    print(label)
+    # SVR regression
+    if(args.reg):
+        model, y_pred, metrics = svr_regression(fea, label, mask)
+        print(metrics)
+    # SVM classification
+    if(args.cls):
+        model, y_pred, metrics = svm_classification(fea, label, mask)
+        print(metrics["accuracy"])
+    
