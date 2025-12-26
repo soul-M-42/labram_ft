@@ -18,7 +18,7 @@ seed: 0
 
 # Dataset
 DATA_ROOT_DIR: "/emo-eeg"
-DATASET_NAME: 'dummy'
+DATASET_NAME: 'FACED_standard'
 CACHE_ROOT: "cache"
 INPUT_CHA_NAMES: ['FP1', 'FP2', 'FPZ']
 LABEL_DIM: 3

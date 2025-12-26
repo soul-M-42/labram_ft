@@ -1,5 +1,5 @@
 from model.base_model import get_base_model
-from model.utils import model_detail, get_input_chans
+from model.utils import model_detail, get_input_chans, zscore_norm
 from model.reg_head_mlp import MLPRegHead
 from data.dataloader import get_loader
 from finetune.engine import finetune_one_epoch, validate_one_epoch
@@ -166,6 +166,7 @@ if __name__ == '__main__':
             sub_list=args.VAL_SUBS,
             batch_size=args.BATCH_SIZE
         )
+        print(len(val_loader))
         print(len(val_loader.dataset))
         input_cha_names = args.INPUT_CHA_NAMES
         input_cha_ids = get_input_chans(input_cha_names)
@@ -176,28 +177,33 @@ if __name__ == '__main__':
             eeg = eeg.to(device)
             y_real = label.to(device)
             fea = base_model(eeg, input_cha_ids)
-            fea_all.append(fea)
-            label_all.append(y_real)
-        fea_all = torch.concat(fea_all)
-        label_all = torch.concat(label_all)
+            fea_all.append(fea.detach().cpu().numpy())
+            label_all.append(y_real.detach().cpu().numpy())
+        fea_all = np.concatenate(fea_all)
+        label_all = np.concatenate(label_all)
         fea_save_dir = f'{args.DATA_ROOT_DIR}/{args.DATASET_NAME}/fea'    
         if not os.path.exists(fea_save_dir):
             os.makedirs(fea_save_dir)
         fea_dir = f'{fea_save_dir}/fea_{args.run_name}.npy'
         label_dir = f'{fea_save_dir}/label_{args.run_name}.npy'
-        np.save(fea_dir, fea_all.detach().cpu().numpy())
-        np.save(label_dir,label_all.detach().cpu().numpy())
+        np.save(fea_dir, fea_all)
+        np.save(label_dir,label_all)
         print(f'Feature saved to {fea_dir}')
 
     fea = np.load(fea_dir)
     label = np.load(label_dir)
+
+    # optional fea process
+    fea = zscore_norm(fea)
+
     n = fea.shape[0]
     mask = np.array([0] * (n // 2) + [1] * (n - n // 2))
-    print(mask.shape)
     # SVR regression
     if(args.reg):
         model, y_pred, metrics = svr_regression(fea, label, mask)
-        print(metrics)
+        print(f"SVR Regression ({y_pred.shape[1]}D)")
+        for d, m in enumerate(metrics["per_dim"]):
+            print(f"[Dim {d}] MSE: {m['mse']:.6f}, R2: {m['r2']:.6f}")
     # SVM classification
     if(args.cls):
         model, y_pred, metrics = svm_classification(fea, label, mask)

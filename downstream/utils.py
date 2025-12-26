@@ -1,22 +1,18 @@
 import numpy as np
+from sklearn.svm import SVR, SVC
+from sklearn.metrics import mean_squared_error, r2_score, accuracy_score, classification_report
 
 def preprocess_label(label, task="regression"):
-    """
-    task: 'regression' or 'classification'
-    """
     label = np.asarray(label)
 
-    # 如果是 [N, 1] 或 one-hot
-    if label.ndim > 1:
-        if label.shape[1] == 1:
-            label = label.squeeze()
-        else:
-            # one-hot → class index
-            label = np.argmax(label, axis=1)
-
     if task == "classification":
+        if label.ndim > 1:
+            if label.shape[1] == 1:
+                label = label.squeeze()
+            else:
+                label = np.argmax(label, axis=1)
+
         if np.issubdtype(label.dtype, np.floating):
-            # float → 离散化
             uniq = np.unique(label)
             mapping = {v: i for i, v in enumerate(uniq)}
             label = np.vectorize(mapping.get)(label).astype(int)
@@ -25,16 +21,17 @@ def preprocess_label(label, task="regression"):
 
     elif task == "regression":
         label = label.astype(float)
+        if label.ndim == 2 and label.shape[1] == 1:
+            label = label.squeeze(1)
+        # [N, D] (D>1) 保持不变
+
+    else:
+        raise ValueError(f"Unknown task type: {task}")
 
     return label
 
-from sklearn.svm import SVR
-from sklearn.metrics import mean_squared_error, r2_score
 
 def svr_regression(fea, label, mask, svr_params=None):
-    """
-    SVR regression with automatic label handling
-    """
     fea = np.asarray(fea)
     mask = np.asarray(mask).astype(bool)
 
@@ -50,25 +47,44 @@ def svr_regression(fea, label, mask, svr_params=None):
             epsilon=0.1
         )
 
-    model = SVR(**svr_params)
-    model.fit(X_train, y_train)
+    models = []
+    y_pred = None
+    metrics = {}
 
-    y_pred = model.predict(X_val)
+    # ===== 单维回归 =====
+    if y_train.ndim == 1:
+        model = SVR(**svr_params)
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_val)
 
-    metrics = {
-        "mse": mean_squared_error(y_val, y_pred),
-        "r2": r2_score(y_val, y_pred)
-    }
+        models = model
+        metrics = {
+            "mse": mean_squared_error(y_val, y_pred),
+            "r2": r2_score(y_val, y_pred)
+        }
 
-    return model, y_pred, metrics
+    # ===== 多维回归：每个维度一个回归器 =====
+    else:
+        n_dim = y_train.shape[1]
+        y_pred = np.zeros((X_val.shape[0], n_dim))
+        metrics["per_dim"] = []
 
-from sklearn.svm import SVC
-from sklearn.metrics import accuracy_score, classification_report
+        for d in range(n_dim):
+            model = SVR(**svr_params)
+            model.fit(X_train, y_train[:, d])
+            y_pred[:, d] = model.predict(X_val)
+
+            dim_metrics = {
+                "mse": mean_squared_error(y_val[:, d], y_pred[:, d]),
+                "r2": r2_score(y_val[:, d], y_pred[:, d])
+            }
+            metrics["per_dim"].append(dim_metrics)
+            models.append(model)
+
+    return models, y_pred, metrics
+
 
 def svm_classification(fea, label, mask, svm_params=None):
-    """
-    SVM classification with automatic label handling
-    """
     fea = np.asarray(fea)
     mask = np.asarray(mask).astype(bool)
 
