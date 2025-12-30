@@ -38,9 +38,9 @@ VAL_SUBS: [0,1]
 # Extract
 run_name: 'default_run_name'
 # finetune: ./runs/default_run_name/ckpt/checkpoint.pth
-finetune: ./checkpoints/labram-base.pth
+finetune: ./checkpoints/labram-base.pth # model used for feature extracting
 
 # Downstream Pipeline
-ext: false
+ext: true
 reg: false
 cls: true

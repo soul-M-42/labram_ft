@@ -185,6 +185,8 @@ if __name__ == '__main__':
         label_all = np.concatenate(label_all)
         if not os.path.exists(fea_save_dir):
             os.makedirs(fea_save_dir)
+        # optional fea process
+        fea_all = zscore_norm(fea_all)
         np.save(fea_dir, fea_all)
         np.save(label_dir,label_all)
         print(f'Feature saved to {fea_dir}')
@@ -194,8 +196,6 @@ if __name__ == '__main__':
     label = np.load(label_dir)
     print(f'fea shape {fea.shape}')
 
-    # optional fea process
-    fea = zscore_norm(fea)
 
     n = fea.shape[0]
     mask = np.array([0] * (n // 2) + [1] * (n - n // 2))

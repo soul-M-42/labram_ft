@@ -151,6 +151,7 @@ def save_model(output_dir, epoch, model, optimizer, model_ema=None, optimizer_di
         save_on_master(to_save, checkpoint_path)
 
 def zscore_norm(X):
+    print(f'Z-score')
     mean = X.mean(axis=0, keepdims=True)  # [1, n_dim]
     std = X.std(axis=0, keepdims=True)    # [1, n_dim]
     std[std == 0] = 1

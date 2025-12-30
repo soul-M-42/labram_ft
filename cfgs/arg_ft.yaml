@@ -1,5 +1,5 @@
 model: labram_base_patch200_200
-finetune: ./checkpoints/labram-base.pth
+finetune: ./checkpoints/labram-base.pth # base-model weight for finetune
 weight_decay: 0.05
 batch_size: 64
 lr: 5e-4
