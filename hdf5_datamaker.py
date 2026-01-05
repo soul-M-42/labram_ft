@@ -92,6 +92,7 @@ data_save_path = Path(f"{output_dir}.h5")
 data_save_path.parent.mkdir(parents=True, exist_ok=True)
 with h5py.File(data_save_path, 'w') as f:
     for sub, sessions in subject_files.items():
+        sub = int(sub)
         print(sub)
         # if(sub != '7'):
         #     continue
@@ -117,8 +118,6 @@ with h5py.File(data_save_path, 'w') as f:
             if sfreq is None:
                 sfreq = raw.info['sfreq']
 
-        raw_all = mne.concatenate_raws(raws)
-        data_all = raw_all.get_data()   # (C, T)
 
         # ======================= 只保留 trial 片段 =======================
         trial_segments = []
@@ -132,7 +131,8 @@ with h5py.File(data_save_path, 'w') as f:
                 start_sample = int(round(start_sec * target_sfreq))
                 end_sample = int(round(end_sec * target_sfreq))
 
-                segment = data_all[:, start_sample:end_sample]
+                # segment = data_all[:, start_sample:end_sample]
+                segment = raws[sess].get_data()[:, start_sample:end_sample]
                 trial_segments.append(segment)
 
                 trial_idx += 1
