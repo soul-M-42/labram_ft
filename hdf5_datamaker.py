@@ -60,7 +60,8 @@ trial_labels = np.array([
     2, 1, 3, 0, 4, 2, 1, 3, 0, 4, 2, 1, 3, 0, 4
 ])
 trial_labels_onehot = (trial_labels.reshape(-1, 1) == np.arange(label_dim)).astype(int)
-all_labels = np.tile(trial_labels_onehot, (n_sub, 1, 1))
+trial_labels_onehot = trial_labels_onehot.reshape((trial_labels_onehot.shape[0], trial_labels_onehot.shape[1], 1))
+all_labels = np.tile(trial_labels_onehot, (n_sub, 1, 1, 1))
 print(all_labels.shape)
 
 # Case 2. If your label is multi-dim dynamic float:
@@ -71,41 +72,42 @@ print(all_labels.shape)
 # T can be attribute and it will be resampled to match n_eeg_segment 
 
 
-def stretch_axis(arr, T_prime):
-    is_1d = arr.ndim == 1
-    if is_1d:
-        arr = arr[np.newaxis, :] # 变为 [1, k]
+def stretch_axis(arr, new_t):
+    n, t = arr.shape
+    # 原有的时间点坐标（0 到 t-1）
+    old_indices = np.linspace(0, t - 1, t)
+    # 目标时间点坐标（0 到 t-1，但采样 new_t 个点）
+    new_indices = np.linspace(0, t - 1, new_t)
     
-    T = arr.shape[-1]
-    x_old = np.arange(T)
-    x_new = np.linspace(0, T - 1, T_prime)
+    # 对每一行进行线性插值
+    # np.apply_along_axis 可以简化循环
+    resized_matrix = np.apply_along_axis(
+        lambda row: np.interp(new_indices, old_indices, row), 
+        axis=1, 
+        arr=arr
+    )
     
-    # 对每一行执行插值
-    res = np.apply_along_axis(lambda y: np.interp(x_new, x_old, y), axis=-1, arr=arr)
-    
-    return res.flatten() if is_1d else res
+    return resized_matrix
 
 
 # ======================= 主处理 =======================
 ch_names = None
+sfreq = None
 data_save_path = Path(f"{output_dir}.h5")
 data_save_path.parent.mkdir(parents=True, exist_ok=True)
+subs = None
 with h5py.File(data_save_path, 'w') as f:
-    for sub, sessions in subject_files.items():
-        sub = int(sub)
-        print(sub)
-        # if(sub != '7'):
-        #     continue
-        print(f"\n处理 sub_{sub}")
-
-        raws = []
-        sfreq = None
-
+    for sub in range(16):
+        if(subs is not None and sub not in subs):
+            continue
+        sub_str = str(sub+1)
         # ---- 读取 & 拼 session ----
-        for sess in [1, 2, 3]:
-            print(f'reading {sessions[sess]}')
+        trial_segments = []
+        for sess in range(3):
+            cnt_path = subject_files[sub_str][sess+1]
+            print(f'reading {cnt_path}')
             raw = mne.io.read_raw_cnt(
-                sessions[sess],
+                cnt_path,
                 preload=True
             )
             useless_ch = ['M1', 'M2', 'VEO', 'HEO']
@@ -114,16 +116,9 @@ with h5py.File(data_save_path, 'w') as f:
             raw.notch_filter(freqs=50.0, verbose=False)
             raw.filter(l_freq=0.1, h_freq=75.0, verbose=False)
             raw.resample(target_sfreq, verbose=False)
-            raws.append(raw)
             if sfreq is None:
                 sfreq = raw.info['sfreq']
 
-
-        # ======================= 只保留 trial 片段 =======================
-        trial_segments = []
-
-        trial_idx = 0
-        for sess in range(3):
             for t in range(15):
                 start_sec = start_seconds[sess, t]
                 end_sec = end_seconds[sess, t]
@@ -132,10 +127,9 @@ with h5py.File(data_save_path, 'w') as f:
                 end_sample = int(round(end_sec * target_sfreq))
 
                 # segment = data_all[:, start_sample:end_sample]
-                segment = raws[sess].get_data()[:, start_sample:end_sample]
+                segment = raw.get_data()[:, start_sample:end_sample]
                 trial_segments.append(segment)
 
-                trial_idx += 1
 
         print(len(trial_segments))
         print(ch_names)
@@ -154,6 +148,6 @@ with h5py.File(data_save_path, 'w') as f:
                 dset = slice_grp.create_dataset('eeg', data=slice_data)
                 dset.attrs['chOrder'] = ch_names
                 dset.attrs['rsFreq'] = target_sfreq
-                dset.attrs['label'] = sub_trial_label[i_slice]
+                dset.attrs['label'] = sub_trial_label[:, i_slice]
                 dset.attrs['video_id'] = i_trial
                 dset.attrs['start_sample'] = start  # 可选：记录切片在原数据中的起始位置

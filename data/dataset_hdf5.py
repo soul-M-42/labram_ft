@@ -1,45 +1,57 @@
 import torch
-import glob
 import h5py
-import os
-import re
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
 class EEGDataset(Dataset):
-    def __init__(self, directory_path, subs=None, vids=None):
+    def __init__(self, h5_path, subs=None, vids=None):
         """
-        subs: list of int, e.g., [1, 2, 3]
-        vids: list of int, e.g., [0, 1, 5]
+        Args:
+            h5_path: .h5 文件的路径
+            subs: 需要包含的主体 ID 列表 (e.g., [1, 2])
+            vids: 需要包含的视频/试验 ID 列表 (e.g., [0, 5])
         """
-        all_files = sorted(glob.glob(os.path.join(directory_path, "sub*.h5")))
-        self.registry = []
-        
-        # 预过滤子集文件
-        if subs is not None:
-            # 匹配 filename 中的数字，例如 sub4.h5 -> 4
-            all_files = [f for f in all_files if int(re.search(r'sub(\d+)', os.path.basename(f)).group(1)) in subs]
+        self.h5_path = h5_path
+        self.samples = []
 
-        for fp in tqdm(all_files, desc="Indexing Dataset"):
-            with h5py.File(fp, 'r', locking=False) as f:
-                # 过滤 vid 级别子集
-                target_vids = f.keys()
-                if vids is not None:
-                    target_vids = [v for v in target_vids if int(re.search(r'vid(\d+)', v).group(1)) in vids]
+        with h5py.File(self.h5_path, 'r') as f:
+            # 获取所有 subject 键名
+            all_sub_keys = list(f.keys())
+            
+            # 使用 tqdm 包装循环，desc 用于显示进度条提示文字
+            for sub_key in tqdm(all_sub_keys, desc="Loading Subjects"):
+                sub_id = int(''.join(filter(str.isdigit, sub_key)))
                 
-                for vid in target_vids:
-                    for sample in f[vid].keys():
-                        self.registry.append((fp, f"{vid}/{sample}/eeg"))
+                if subs is not None and sub_id not in subs:
+                    continue
+                
+                sub_group = f[sub_key]
+                for vid_key in sub_group.keys():
+                    vid_id = int(''.join(filter(str.isdigit, vid_key)))
+                    
+                    if vids is not None and vid_id not in vids:
+                        continue
+                    
+                    vid_group = sub_group[vid_key]
+                    for sample_key in vid_group.keys():
+                        self.samples.append((sub_key, vid_key, sample_key))
+        
+        print(f"Dataset initialized with {len(self.samples)} samples.")
 
     def __len__(self):
-        return len(self.registry)
+        return len(self.samples)
 
     def __getitem__(self, idx):
-        file_path, eeg_path = self.registry[idx]
-        with h5py.File(file_path, 'r', locking=False) as f:
-            dataset = f[eeg_path]
-            data = torch.from_numpy(dataset[:]).float()
-            label = torch.tensor(dataset.attrs['label']).float()
-        return data, label
-
-# 使用示例: 只读取 sub1, sub2 和 vid0, vid1 的数据
+        sub_key, vid_key, sample_key = self.samples[idx]
+        
+        # 建议：如果是频繁读取，考虑在外部保持文件开启或使用缓存
+        with h5py.File(self.h5_path, 'r') as f:
+            dataset = f[sub_key][vid_key][sample_key]['eeg']
+            data = dataset[:]  # Shape: (Channels, Time Points)
+            label = dataset.attrs['label']
+            
+        x = torch.from_numpy(data).float()
+        # 如果 label 是标量，建议直接转换
+        y = torch.tensor(label).float() 
+        
+        return x, y
