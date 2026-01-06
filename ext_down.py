@@ -105,15 +105,9 @@ def get_args_from_yaml(yaml_path: str):
     parser.add_argument('--enable_deepspeed', action='store_true', default=False)
     parser.add_argument('--dataset', default='TUAB', type=str)
 
-    parser.add_argument('--DATA_ROOT_DIR', default='/emo-eeg', type=str)
+    parser.add_argument('--h5path', default=None, type=str)
     parser.add_argument('--CACHE_ROOT', default='cache', type=str)
-    parser.add_argument('--INPUT_CHA_NAMES', default='cache', type=str)
     parser.add_argument('--LABEL_DIM', default=3, type=int)
-    parser.add_argument('--DATASET_NAME', default='dummy', type=str)
-    parser.add_argument('--FS_ORI', type=int)
-    parser.add_argument('--FS_TAR', default=200, type=int)
-    parser.add_argument('--WINDOW_SIZE', default=2.0, type=float)
-    parser.add_argument('--STRIDE', default=1.0, type=float)
     parser.add_argument('--BATCH_SIZE', default=4, type=int)
     parser.add_argument('--TRAIN_SUBS', default=None, type=int, nargs='+', help="训练子集列表")
     parser.add_argument('--VAL_SUBS', default=None, type=int, nargs='+', help="验证子集列表")
@@ -153,7 +147,7 @@ def get_args_from_yaml(yaml_path: str):
 
 if __name__ == '__main__':
     args, ds_init = get_args_from_yaml('./cfgs/arg_ex.yaml')
-    fea_save_dir = f'{args.DATA_ROOT_DIR}/{args.DATASET_NAME}/fea'  
+    fea_save_dir = 'fea'  
     fea_dir = f'{fea_save_dir}/fea_{args.run_name}.npy'
     label_dir = f'{fea_save_dir}/label_{args.run_name}.npy'  
     if(args.ext):
@@ -165,12 +159,12 @@ if __name__ == '__main__':
         # ---------- dataloader ----------
         val_loader = get_loader(
             args,
-            sub_list=args.VAL_SUBS,
+            subs=args.VAL_SUBS,
             batch_size=args.BATCH_SIZE
         )
         print(len(val_loader))
         print(len(val_loader.dataset))
-        input_cha_names = args.INPUT_CHA_NAMES
+        input_cha_names = val_loader.dataset.ch_names
         input_cha_ids = get_input_chans(input_cha_names)
         device = torch.device('cuda')
         fea_all = []

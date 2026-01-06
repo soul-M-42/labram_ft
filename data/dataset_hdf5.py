@@ -13,6 +13,7 @@ class EEGDataset(Dataset):
         """
         self.h5_path = h5_path
         self.samples = []
+        self.ch_names = None
 
         with h5py.File(self.h5_path, 'r') as f:
             # 获取所有 subject 键名
@@ -35,6 +36,10 @@ class EEGDataset(Dataset):
                     vid_group = sub_group[vid_key]
                     for sample_key in vid_group.keys():
                         self.samples.append((sub_key, vid_key, sample_key))
+            sub_key, vid_key, sample_key = self.samples[0]
+            sample_0 = f[sub_key][vid_key][sample_key]['eeg']
+            self.ch_names = sample_0.attrs['chOrder']
+            print(f'channels: {self.ch_names}')
         
         print(f"Dataset initialized with {len(self.samples)} samples.")
 
@@ -53,5 +58,6 @@ class EEGDataset(Dataset):
         x = torch.from_numpy(data).float()
         # 如果 label 是标量，建议直接转换
         y = torch.tensor(label).float() 
-        
+        [n_c, t] = x.shape
+        x = x.view(n_c, -1, 200)
         return x, y

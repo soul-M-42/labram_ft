@@ -103,11 +103,9 @@ def get_args_from_yaml(yaml_path: str):
     parser.add_argument('--enable_deepspeed', action='store_true', default=False)
     parser.add_argument('--dataset', default='TUAB', type=str)
 
-    parser.add_argument('--DATA_ROOT_DIR', default='/emo-eeg', type=str)
+    parser.add_argument('--h5path', default=None, type=str)
     parser.add_argument('--CACHE_ROOT', default='cache', type=str)
-    parser.add_argument('--INPUT_CHA_NAMES', default='cache', type=str)
     parser.add_argument('--LABEL_DIM', default=3, type=int)
-    parser.add_argument('--DATASET_NAME', default='dummy', type=str)
     parser.add_argument('--FS', default=200, type=int)
     parser.add_argument('--WINDOW_SIZE', default=2.0, type=float)
     parser.add_argument('--STRIDE', default=1.0, type=float)
@@ -161,17 +159,18 @@ if __name__ == '__main__':
     # ---------- dataloader ----------
     train_loader = get_loader(
         args,
-        sub_list=args.TRAIN_SUBS,
+        subs=args.TRAIN_SUBS,
         batch_size=args.BATCH_SIZE
     )
     val_loader = get_loader(
         args,
-        sub_list=args.VAL_SUBS,
+        subs=args.VAL_SUBS,
         batch_size=args.BATCH_SIZE
     )
 
     # ---------- input channels ----------
-    input_cha_names = args.INPUT_CHA_NAMES
+    input_cha_names = train_loader.dataset.ch_names
+
     input_cha_ids = get_input_chans(input_cha_names)
 
     # ---------- optimizer ----------

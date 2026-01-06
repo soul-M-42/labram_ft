@@ -17,11 +17,9 @@ seed: 0
 # Regression Head
 
 # Dataset
-DATA_ROOT_DIR: "/emo-eeg"
-DATASET_NAME: 'FACED_standard'
+h5path: '/mnt/dataset4/daily_eeg_emotion/Data/SEED-V/SEEDV_hdf5_T=2.0s_stride=2.0.h5'
 CACHE_ROOT: "cache"
-INPUT_CHA_NAMES: ['FP1', 'FP2', 'FPZ']
-LABEL_DIM: 3
+LABEL_DIM: 5
 FS: 200
 WINDOW_SIZE: 2.0
 STRIDE: 1.0
