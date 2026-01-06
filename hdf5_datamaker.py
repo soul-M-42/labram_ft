@@ -21,7 +21,7 @@ sample_T = 2.0 # EEG sample window timelength in s
 sample_stride = 2.0 # # EEG sample window stride in s
 label_dim = 5
 input_dir = "C:\EEG_data\EEG_raw_cnt"
-output_dir = f"V:\daily_eeg_emotion\Data\SEED-V\SEEDV_hdf5_T={sample_T}s_stride={sample_stride}"
+output_dir = f"C:\EEG_data\processed\SEED-V\SEEDV_hdf5_T={sample_T}s_stride={sample_stride}"
 sample_samples = int(sample_T * target_sfreq)
 stride_samples = int(sample_stride * target_sfreq)
 
@@ -93,14 +93,18 @@ def stretch_axis(arr, new_t):
 # ======================= 主处理 =======================
 ch_names = None
 sfreq = None
-data_save_path = Path(f"{output_dir}.h5")
-data_save_path.parent.mkdir(parents=True, exist_ok=True)
+output_path_base = Path(output_dir)
+output_path_base.mkdir(parents=True, exist_ok=True)
 subs = None
-with h5py.File(data_save_path, 'w') as f:
-    for sub in range(16):
-        if(subs is not None and sub not in subs):
-            continue
-        sub_str = str(sub+1)
+
+for sub in range(16):
+    if(subs is not None and sub not in subs):
+        continue
+    sub_str = str(sub+1)
+    
+    # 为每个 subject 创建独立的 h5 文件
+    sub_h5_path = output_path_base / f"sub_{sub}.h5"
+    with h5py.File(sub_h5_path, 'w') as f:
         # ---- 读取 & 拼 session ----
         trial_segments = []
         for sess in range(3):
@@ -126,15 +130,19 @@ with h5py.File(data_save_path, 'w') as f:
                 start_sample = int(round(start_sec * target_sfreq))
                 end_sample = int(round(end_sec * target_sfreq))
 
-                # segment = data_all[:, start_sample:end_sample]
                 segment = raw.get_data()[:, start_sample:end_sample]
                 trial_segments.append(segment)
-
 
         print(len(trial_segments))
         print(ch_names)
         sub_group = f.create_group(f'sub{sub}')
         for i_trial, data_trial in enumerate(trial_segments):
+            if(i_trial < 15):
+                session = 1
+            elif(i_trial < 30):
+                session = 2
+            elif(i_trial < 45):
+                session = 3
             print(f'sub {sub} trial {i_trial}: {data_trial.shape}')
             vid_grp = sub_group.create_group(f"vid{i_trial}")
             n_samples = data_trial.shape[-1]
@@ -146,8 +154,17 @@ with h5py.File(data_save_path, 'w') as f:
                 slice_data = data_trial[:, start:end]
                 slice_grp = vid_grp.create_group(f"sample{i_slice}")
                 dset = slice_grp.create_dataset('eeg', data=slice_data)
-                dset.attrs['chOrder'] = ch_names
                 dset.attrs['rsFreq'] = target_sfreq
                 dset.attrs['label'] = sub_trial_label[:, i_slice]
-                dset.attrs['video_id'] = i_trial
-                dset.attrs['start_sample'] = start  # 可选：记录切片在原数据中的起始位置
+                dset.attrs['subject_id'] = sub
+                dset.attrs['trial_id'] = i_trial
+                dset.attrs['session_id'] = session
+                dset.attrs['segment_id'] = i_slice
+                dset.attrs['time_length'] = sample_T
+                dset.attrs['dataset_name'] = 'SEEDV'
+                dset.attrs['chn_name'] = ch_names
+                dset.attrs['chn_pos'] = None
+                dset.attrs['chn_ori'] = None
+                dset.attrs['chn_type'] = 'EEG'
+                dset.attrs['montage'] = '10_20'
+                
